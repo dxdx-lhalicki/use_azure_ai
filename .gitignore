@@ -24,3 +24,5 @@ override.tf.json
 # Ignore .terraform directory
 .terraform/
 .terraform.lock.hcl
+
+.vscode/
