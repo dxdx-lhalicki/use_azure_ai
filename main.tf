@@ -76,7 +76,7 @@ resource "azurerm_storage_queue" "queue" {
 }
 
 resource "azurerm_role_assignment" "app_service_queue_contributor" {
-    principal_id   = azurerm_app_service.app_service.identity.principal_id
+    principal_id   = azurerm_app_service.app_service.identity[0].principal_id
     role_definition_name = "Storage Queue Data Contributor"
     scope          = azurerm_storage_account.queue_storage.id
 }
@@ -89,7 +89,7 @@ resource "azurerm_storage_container" "blob_container" {
 }
 
 resource "azurerm_role_assignment" "app_service_blob_contributor" {
-    principal_id   = azurerm_app_service.app_service.identity.principal_id
+    principal_id   = azurerm_app_service.app_service.identity[0].principal_id
     role_definition_name = "Storage Blob Data Contributor"
     scope          = azurerm_storage_account.queue_storage.id
 }
@@ -140,82 +140,24 @@ resource "azurerm_function_app" "analyze_function" {
 
 resource "azurerm_cosmosdb_account" "cosmosdb" {
     name                = var.cosmosdb_name
-    location            = azurerm_resource_group.example.location
-    resource_group_name = azurerm_resource_group.example.name
+    location            = azurerm_resource_group.app_service_rg.location
+    resource_group_name = azurerm_resource_group.app_service_rg.name
     offer_type          = "Standard"
     kind                = "MongoDB"
     consistency_policy {
         consistency_level = "Session"
     }
     geo_location {
-        location          = azurerm_resource_group.example.location
+        location          = azurerm_resource_group.app_service_rg.location
         failover_priority = 0
     }
 }
 
 # Create Azure Cognitive Search service
 resource "azurerm_search_service" "cognitive_search" {
-    name                = var.search_service_name
-    location            = azurerm_resource_group.app_service_rg.location
-    resource_group_name = azurerm_resource_group.app_service_rg.name
-    sku = {
-        name     = "standard"
-        tier     = "Standard"
-        capacity = 1
-    }
-}
-
-# Create Azure Cognitive Search index
-resource "azurerm_search_index" "cognitive_search_index" {
-    name                  = var.search_index_name
-    search_service_name   = azurerm_search_service.cognitive_search.name
-    resource_group_name   = azurerm_resource_group.app_service_rg.name
-    index_type            = "search"
-    fields {
-        name = "id"
-        type = "Edm.String"
-    }
-    fields {
-        name = "title"
-        type = "Edm.String"
-    }
-    fields {
-        name = "description"
-        type = "Edm.String"
-    }
-}
-
-# Create Azure Cognitive Search data source
-resource "azurerm_search_datasource" "cognitive_search_datasource" {
-    name                  = var.search_datasource_name
-    search_service_name   = azurerm_search_service.cognitive_search.name
-    resource_group_name   = azurerm_resource_group.app_service_rg.name
-    type                  = "azuresql"
-    container {
-        name                  = var.sql_database_name
-        query                 = "SELECT id, title, description FROM ${var.sql_table_name}"
-        connection_string     = var.sql_connection_string
-        data_change_detection = true
-    }
-}
-
-# Create Azure Cognitive Search indexer
-resource "azurerm_search_indexer" "cognitive_search_indexer" {
-    name                  = var.search_indexer_name
-    search_service_name   = azurerm_search_service.cognitive_search.name
-    resource_group_name   = azurerm_resource_group.app_service_rg.name
-    data_source_name      = azurerm_search_datasource.cognitive_search_datasource.name
-    target_index_name     = azurerm_search_index.cognitive_search_index.name
-    schedule {
-        interval = "PT5M"
-    }
-    parameters {
-        max_failed_items = 10
-        max_failed_items_per_batch = 5
-    }
-}
-
-# Output the search service URL
-output "search_service_url" {
-    value = azurerm_search_service.cognitive_search.endpoint
+    name                        = var.search_service_name
+    location                    = azurerm_resource_group.app_service_rg.location
+    resource_group_name         = azurerm_resource_group.app_service_rg.name
+    sku                         = "standard"
+    local_authentication_enabled = false
 }

@@ -13,8 +13,4 @@ provider "azurerm" {
     use_cli              = true
     // use_oidc must be explicitly set to true when using multiple configurations.
     use_oidc             = true
-    client_id_file_path  = var.tfc_azure_dynamic_credentials.default.client_id_file_path
-    oidc_token_file_path = var.tfc_azure_dynamic_credentials.default.oidc_token_file_path
-    subscription_id      = "394bdec4-d339-44c3-8ad8-82040c134713"
-    tenant_id            = "75379e18-455d-45b0-b1c4-8cdd1dbb0d55"
 }
