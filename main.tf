@@ -14,49 +14,39 @@ resource "azurerm_virtual_network" "app_service_vnet" {
 
 # Create subnet
 resource "azurerm_subnet" "app_service_subnet" {
-    name                 = var.subnet_name
+    name                 = var.app_subnet_name
     resource_group_name  = azurerm_resource_group.app_service_rg.name
     virtual_network_name = azurerm_virtual_network.app_service_vnet.name
     address_prefixes     = ["10.0.1.0/24"]
 }
 
-# Create app service plan
-resource "azurerm_app_service_plan" "app_service_plan" {
-    name                = "${var.app_service_name}-plan"
-    location            = azurerm_resource_group.app_service_rg.location
-    resource_group_name = azurerm_resource_group.app_service_rg.name
-    sku {
-        tier = "Standard"
-        size = "S1"
-    }
+resource "azurerm_subnet" "functions_subnet" {
+    name                 = var.functions_subnet_name
+    resource_group_name  = azurerm_resource_group.app_service_rg.name
+    virtual_network_name = azurerm_virtual_network.app_service_vnet.name
+    address_prefixes     = ["10.0.2.0/24"]
 }
 
-# Create app service
-resource "azurerm_app_service" "app_service" {
-    name                = var.app_service_name
-    location            = azurerm_resource_group.app_service_rg.location
+resource "azurerm_service_plan" "web_app_service_plan" {
+    name                = "${var.web_app_name}-plan"
     resource_group_name = azurerm_resource_group.app_service_rg.name
-    app_service_plan_id = azurerm_app_service_plan.app_service_plan.id
+    location            = azurerm_resource_group.app_service_rg.location
+    os_type             = "Linux"
+    sku_name            = "P1v2"
+}
 
-    site_config {
-        dotnet_framework_version = "v5.0"
-        scm_type                 = "LocalGit"
-    }
-
-    app_settings = {
-        "WEBSITE_RUN_FROM_PACKAGE" = "1"
-    }
+resource "azurerm_linux_web_app" "web_app" {
+    name                      = var.web_app_name
+    location                  = azurerm_resource_group.app_service_rg.location
+    resource_group_name       = azurerm_resource_group.app_service_rg.name
+    service_plan_id           = azurerm_service_plan.web_app_service_plan.id
+    virtual_network_subnet_id = azurerm_subnet.app_service_subnet.id
 
     identity {
         type = "SystemAssigned"
     }
 
-    depends_on = [azurerm_subnet.app_service_subnet]
-}
-
-# Output the app service URL
-output "app_service_url" {
-    value = azurerm_app_service.app_service.default_site_hostname
+    site_config {}
 }
 
 # Create Azure Storage Account
@@ -76,9 +66,9 @@ resource "azurerm_storage_queue" "queue" {
 }
 
 resource "azurerm_role_assignment" "app_service_queue_contributor" {
-    principal_id   = azurerm_app_service.app_service.identity[0].principal_id
+    principal_id         = azurerm_linux_web_app.web_app.identity[0].principal_id
     role_definition_name = "Storage Queue Data Contributor"
-    scope          = azurerm_storage_account.queue_storage.id
+    scope                = azurerm_storage_account.queue_storage.id
 }
 
 # Create Azure Blob Storage
@@ -89,24 +79,20 @@ resource "azurerm_storage_container" "blob_container" {
 }
 
 resource "azurerm_role_assignment" "app_service_blob_contributor" {
-    principal_id   = azurerm_app_service.app_service.identity[0].principal_id
+    principal_id         = azurerm_linux_web_app.web_app.identity[0].principal_id
     role_definition_name = "Storage Blob Data Contributor"
-    scope          = azurerm_storage_account.queue_storage.id
+    scope                = azurerm_storage_account.queue_storage.id
 }
 
-# Create app service plan for functions
-resource "azurerm_app_service_plan" "functions_plan" {
-    name                = "functions-plan"
-    location            = azurerm_resource_group.app_service_rg.location
+resource "azurerm_service_plan" "functions_service_plan" {
+    name                = "${var.functions_app_name}-plan"
     resource_group_name = azurerm_resource_group.app_service_rg.name
-    sku {
-        tier = "Standard"
-        size = "S1"
-    }
+    location            = azurerm_resource_group.app_service_rg.location
+    os_type             = "Linux"
+    sku_name            = "Y1"
 }
 
-# Create Azure Storage Accounts for file storage
-resource "azurerm_storage_account" "file_storage" {
+resource "azurerm_storage_account" "functions_file_system_storage" {
     for_each = var.filesystem_storage_accounts
 
     name                     = each.value.name
@@ -117,47 +103,16 @@ resource "azurerm_storage_account" "file_storage" {
     account_kind             = "StorageV2"
 }
 
-# Create Azure Function App - analyze_function
-resource "azurerm_function_app" "analyze_function" {
+resource "azurerm_linux_function_app" "example" {
     for_each = var.function_apps
 
     name                       = each.value.name
-    location                   = azurerm_resource_group.app_service_rg.location
     resource_group_name        = azurerm_resource_group.app_service_rg.name
-    app_service_plan_id        = azurerm_app_service_plan.app_service_plan.id
+    location                   = azurerm_resource_group.app_service_rg.location
+    service_plan_id            = azurerm_service_plan.functions_service_plan.id
+    virtual_network_subnet_id  = azurerm_subnet.functions_subnet.id
     storage_account_name       = each.value.storage_account_name
     storage_account_access_key = each.value.primary_access_key
-    version                    = "~3"
-    os_type                    = "linux"
-    app_settings = {
-        FUNCTIONS_WORKER_RUNTIME = "python"
-    }
 
-    site_config {
-        linux_fx_version = "python|3.9"
-    }
-}
-
-resource "azurerm_cosmosdb_account" "cosmosdb" {
-    name                = var.cosmosdb_name
-    location            = azurerm_resource_group.app_service_rg.location
-    resource_group_name = azurerm_resource_group.app_service_rg.name
-    offer_type          = "Standard"
-    kind                = "MongoDB"
-    consistency_policy {
-        consistency_level = "Session"
-    }
-    geo_location {
-        location          = azurerm_resource_group.app_service_rg.location
-        failover_priority = 0
-    }
-}
-
-# Create Azure Cognitive Search service
-resource "azurerm_search_service" "cognitive_search" {
-    name                        = var.search_service_name
-    location                    = azurerm_resource_group.app_service_rg.location
-    resource_group_name         = azurerm_resource_group.app_service_rg.name
-    sku                         = "standard"
-    local_authentication_enabled = false
+    site_config {}
 }
