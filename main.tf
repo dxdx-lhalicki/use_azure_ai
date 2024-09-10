@@ -1,8 +1,10 @@
+# Create a resource group for the AI use case
 resource "azurerm_resource_group" "ai_usecase_rg" {
     name     = "${var.name}-rg"
     location = var.resource_group_location
 }
 
+# Create a service plan for hosting the web app and function apps
 resource "azurerm_service_plan" "service_plan" {
     name                = "${var.name}-plan"
     resource_group_name = azurerm_resource_group.ai_usecase_rg.name
@@ -11,16 +13,19 @@ resource "azurerm_service_plan" "service_plan" {
     sku_name            = "B1"
 }
 
+# Create a web app for hosting the AI web app
 resource "azurerm_linux_web_app" "web_app" {
     name                      = "${var.name}-web-app"
     location                  = azurerm_resource_group.ai_usecase_rg.location
     resource_group_name       = azurerm_resource_group.ai_usecase_rg.name
     service_plan_id           = azurerm_service_plan.service_plan.id
 
+# Enable the system-assigned managed identity for the web app
     identity {
         type = "SystemAssigned"
     }
 
+# Configure the web app to use the latest
     site_config {
         always_on = false
     }
@@ -30,6 +35,7 @@ resource "azurerm_linux_web_app" "web_app" {
     ]
 }
 
+# Create a storage account for the web app
 resource "azurerm_storage_account" "storage" {
     name                     = var.storage_account_name
     resource_group_name      = azurerm_resource_group.ai_usecase_rg.name
@@ -39,11 +45,13 @@ resource "azurerm_storage_account" "storage" {
     account_kind             = "StorageV2"
 }
 
+# Create a storage queue for the web app
 resource "azurerm_storage_queue" "queue" {
     name                  = "${var.name}-queue"
     storage_account_name  = azurerm_storage_account.storage.name
 }
 
+# Assign the Storage Queue Data Contributor role to the web app managed identity
 resource "azurerm_role_assignment" "app_service_queue_contributor" {
     principal_id         = azurerm_linux_web_app.web_app.identity[0].principal_id
     role_definition_name = "Storage Queue Data Contributor"
@@ -55,12 +63,14 @@ resource "azurerm_role_assignment" "app_service_queue_contributor" {
     ]
 }
 
+# Create a storage container for the web app
 resource "azurerm_storage_container" "blob_container" {
     name                  = "${var.name}-blob-container"
     storage_account_name  = azurerm_storage_account.storage.name
     container_access_type = "private"
 }
 
+# Assign the Storage Blob Data Contributor role to the web app managed identity
 resource "azurerm_role_assignment" "app_service_blob_contributor" {
     principal_id         = azurerm_linux_web_app.web_app.identity[0].principal_id
     role_definition_name = "Storage Blob Data Contributor"
@@ -72,6 +82,7 @@ resource "azurerm_role_assignment" "app_service_blob_contributor" {
     ]
 }
 
+# Create a storage account for the function apps file system
 resource "azurerm_storage_account" "functions_file_system_storage" {
     name                     = var.functions_file_system_storage_account_name
     resource_group_name      = azurerm_resource_group.ai_usecase_rg.name
@@ -81,6 +92,7 @@ resource "azurerm_storage_account" "functions_file_system_storage" {
     account_kind             = "StorageV2"
 }
 
+# Create a function apps for ochestration
 resource "azurerm_linux_function_app" "functions_app" {
     for_each = var.function_app
 
@@ -99,6 +111,7 @@ resource "azurerm_linux_function_app" "functions_app" {
     ]
 }
 
+# Create a cognitive account with document intelligence model
 resource "azurerm_cognitive_account" "document-intelligence" {
     name                = "${var.name}-document-intelligence"
     location            = azurerm_resource_group.ai_usecase_rg.location
@@ -108,11 +121,14 @@ resource "azurerm_cognitive_account" "document-intelligence" {
     sku_name = "S0"
 }
 
+# Create a user-assigned identity for the Cosmos DB account
 resource "azurerm_user_assigned_identity" "identity" {
     name                = "${var.name}-cosmosDBidentity"
     resource_group_name = azurerm_resource_group.ai_usecase_rg.name
     location            = azurerm_resource_group.ai_usecase_rg.location
 }
+
+# Create a Cosmos DB account for storing metadata
 resource "azurerm_cosmosdb_account" "cosmosDB" {
     name                  = "${var.name}cosmosdb"
     location              = azurerm_resource_group.ai_usecase_rg.location
@@ -140,6 +156,7 @@ resource "azurerm_cosmosdb_account" "cosmosDB" {
     }
 }
 
+# Create a search service for indexing
 resource "azurerm_search_service" "search" {
     name                = "${var.name}-search"
     resource_group_name = azurerm_resource_group.ai_usecase_rg.name
