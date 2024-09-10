@@ -1,6 +1,3 @@
-Here’s a "kick-ass" README file for your GitHub repository, providing a comprehensive summary of the project:
-
-```markdown
 # AI-Powered Document Processing Architecture on Azure with Terraform
 
 ## Overview
@@ -94,7 +91,7 @@ For questions, feel free to reach out to the project maintainers or open an issu
 ---
 
 Deploy your AI-powered document processing architecture with Terraform and Azure, and take document automation to the next level!
-```
+
 
 ### Key Elements:
 - **Comprehensive Overview**: Describes the project and its use case without diving into the blog post itself.
