@@ -76,10 +76,6 @@ Before deploying the infrastructure, ensure that you have the following:
 - **Form Digitization**: Convert scanned forms into structured digital data.
 - **Document Search**: Store and index documents with metadata for fast retrieval and query via Azure Search.
 
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
-
 ## Contributing
 
 Contributions are welcome! Please submit a pull request or raise an issue if you have any suggestions or improvements.
