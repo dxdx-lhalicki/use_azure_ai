@@ -97,3 +97,7 @@ Deploy your AI-powered document processing architecture with Terraform and Azure
 - **Use Cases**: Provides examples of real-world applications for the system.
 
 Let me know if you’d like to make any changes!
+
+### Blog post:
+
+https://www.thecloudtips.com/blog/2
